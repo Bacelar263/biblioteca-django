@@ -1,50 +1,44 @@
-from rest_framework import generics
-
-from .filtro import LivroFilter, CategoriaFilter, AutorFilter
-
-# Importando modelos e serializers das outras classes
+from rest_framework.decorators import api_view
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.response import Response
+from rest_framework import status
 from .models import Livro
 from .serializers import LivroSerializer
 
-from .models import Categoria
-from .serializers import CategoriaSerializer
+@api_view(['GET', 'POST'])
+@csrf_exempt
+def livro_list_create(request):
+    if request.method == 'GET':
+        livros = Livro.objects.all()
+        serializer = LivroSerializer(livros, many=True)
+        return Response(serializer.data)
 
-from .models import Autor
-from .serializers import AutorSerializer
+    if request.method == 'POST':
+        serializer = LivroSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# Modelos class-based views para métodos de Livro, Categoria e Autor
-class LivroList(generics.ListCreateAPIView):
-    queryset = Livro.objects.all()
-    serializer_class = LivroSerializer
-    filterset_class = LivroFilter    
-    name = "livro-list"
-    ordering_fields = ['titulo', 'autor', 'categoria', 'publicado_em']
+@api_view(['GET', 'PUT', 'DELETE'])
+@csrf_exempt
+def livro_detail(request, pk):
+    try:
+        livro = Livro.objects.get(pk=pk)
+    except Livro.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
 
-class LivroDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Livro.objects.all()
-    serializer_class = LivroSerializer
-    name = "livro-detail"
+    if request.method == 'GET':
+        serializer = LivroSerializer(livro)
+        return Response(serializer.data)
 
-class CategoriaList(generics.ListCreateAPIView):
-    queryset = Categoria.objects.all()
-    serializer_class = CategoriaSerializer
-    filterset_class = CategoriaFilter   
-    name = "categoria-list"
-    ordering_fields = ['nome']
+    if request.method == 'PUT':
+        serializer = LivroSerializer(livro, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class CategoriaDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Categoria.objects.all()
-    serializer_class = CategoriaSerializer
-    name = "categoria-detail"
-
-class AutorList(generics.ListCreateAPIView):
-    queryset = Autor.objects.all()
-    serializer_class = AutorSerializer
-    filterset_class = AutorFilter      
-    name = "autor-list"
-    ordering_fields = ['nome']
-
-class AutorDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Autor.objects.all()
-    serializer_class = AutorSerializer
-    name = "autor-detail"
+    if request.method == 'DELETE':
+        livro.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
